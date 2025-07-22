@@ -1,0 +1,23 @@
+{
+  "S006": {
+    "name": "周八",
+    "gender": "Female",
+    "age": 41,
+    "logo_path": "gene_analysis.png",
+    "snp": [],
+    "indel": [],
+    "sv": [],
+    "snv": [],
+    "fusion": [
+      {"gene": "EML4-ALK", "status": "Positive", "description": "EML4-ALK fusion detected"}
+    ],
+    "tmb": [
+      {"gene": "TMB", "status": "Low", "description": "Low tumor mutational burden"}
+    ],
+    "drug": [],
+    "charts": [
+      {"path": "chart1.png", "title": "Gene Expression Chart"},
+      {"path": "chart2.png", "title": "Mutation Frequency Chart"}
+    ]
+  }
+} 

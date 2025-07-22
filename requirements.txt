@@ -1,0 +1,6 @@
+mysql-connector-python
+Jinja2
+reportlab
+xhtml2pdf
+flask
+flask-cors

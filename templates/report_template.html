@@ -1,0 +1,394 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>Gene Test Report</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdn.quilljs.com/1.3.6/quill.snow.css" rel="stylesheet">
+    <style>
+        @font-face {
+            font-family: 'SourceHanSansSC';
+            src: url('file://{{ font_path }}');
+        }
+        body, .container, .card, .section-title, .test-result, .footer, .btn, .form-control, .quill-editor, .editor-container, * {
+            font-family: 'SourceHanSansSC', Tahoma, Arial, sans-serif !important;
+        }
+        .header-logo { max-width: 180px; max-height: 60px; width: 180px; height: 60px; display: block; margin: 0 auto 10px auto; }
+        .section-title {
+            font-weight: bold;
+            border-bottom: 2px solid #bcd2ee;
+            margin-bottom: 10px;
+            color: #3a6ea5;
+            letter-spacing: 1px;
+            font-family: Tahoma, Arial, sans-serif;
+            text-shadow: 1px 1px 0 #bcd2ee;
+        }
+        .test-result { margin-bottom: 15px; }
+        .chart-container { margin: 20px 0; text-align: center; }
+        .signature-area { margin-top: 50px; }
+        .footer { margin-top: 50px; font-size: 0.9em; text-align: center; color: #888; }
+        .button-container {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            display: flex;
+            gap: 10px;
+            z-index: 1000;
+        }
+        .btn-gradient {
+            background: linear-gradient(180deg, #7ec0ee 0%, #3a6ea5 100%);
+            color: #fff;
+            border: 1.5px solid #3a6ea5;
+            border-radius: 8px;
+            font-weight: 600;
+            box-shadow: 0 2px 4px #b0b0b0;
+            transition: background 0.3s, box-shadow 0.3s;
+            font-family: Tahoma, Arial, sans-serif;
+            text-shadow: 1px 1px 0 #bcd2ee;
+        }
+        .btn-gradient:hover {
+            background: linear-gradient(180deg, #3a6ea5 0%, #7ec0ee 100%);
+            color: #fff;
+            box-shadow: 0 4px 16px #b0b0b0;
+        }
+        .btn-gradient:active {
+            transform: scale(0.98);
+        }
+        input[type="text"] {
+            border: 1.5px solid #bcd2ee;
+            border-radius: 6px;
+            background: #f5f6fa;
+            outline: none;
+            font-size: 16px;
+            margin-left: 8px;
+            color: #232526;
+            min-width: 80px;
+            padding: 2px 8px;
+            font-family: Tahoma, Arial, sans-serif;
+        }
+        .editor-container { margin-bottom: 10px; }
+        .quill-editor { min-height: 120px; }
+        .module-section { margin-bottom: 24px; }
+        .card.card-body {
+            background: #fff;
+            color: #232526;
+            border: 1.5px solid #bcd2ee;
+            border-radius: 8px;
+            box-shadow: 0 2px 8px #b0b0b0;
+        }
+        .fw-bold.text-primary { color: #3a6ea5 !important; text-shadow: 1px 1px 0 #bcd2ee; }
+        .text-muted { color: #bfc2c7 !important; }
+    </style>
+    <script src="https://cdn.quilljs.com/1.3.6/quill.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+    <script type="application/json" id="charts-data">{{ charts | tojson | safe }}</script>
+    <script>
+        // 全局保存所有quill实例
+        var quillEditors = [];
+        function syncQuillToTextarea() {
+            document.querySelectorAll('.quill-editor').forEach(function(div, idx) {
+                var textarea = div.nextElementSibling;
+                if (textarea && textarea.classList.contains('editable')) {
+                    textarea.value = quillEditors[idx].root.innerHTML;
+                }
+            });
+        }
+        function generatePdf() {
+            syncQuillToTextarea();
+            const htmlContent = document.documentElement.outerHTML;
+            fetch('/api/generate_pdf', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ html_content: htmlContent })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.download_url) {
+                    alert('PDF 生成成功，正在下载...');
+                    const a = document.createElement('a');
+                    a.href = data.download_url;
+                    a.download = '';
+                    document.body.appendChild(a);
+                    a.click();
+                    document.body.removeChild(a);
+                } else {
+                    alert('PDF 生成失败: ' + (data.error || '未知错误'));
+                }
+            })
+            .catch(err => {
+                alert('请求失败: ' + err);
+            });
+        }
+        // 预生成test_results数据，避免JS中混用Jinja
+        window.PREGENERATED_TEST_RESULTS = {};
+        let descIndex = 0;
+        {% for module, results in test_results.items() %}
+        window.PREGENERATED_TEST_RESULTS['{{ module }}'] = [
+            {% for result in results %}
+            {
+                gene: "{{ result.gene }}",
+                status: "{{ result.status }}",
+                description: null
+            }{% if not loop.last %},{% endif %}
+            {% endfor %}
+        ];
+        {% endfor %}
+        function saveReport() {
+            syncQuillToTextarea();
+            const patient_name = document.getElementById('patient_name').value;
+            const patient_gender = document.getElementById('patient_gender').value;
+            const patient_age = document.getElementById('patient_age').value;
+            const patient_id = document.getElementById('patient_id').value;
+            const reviewed_by = document.getElementById('reviewed_by').value;
+            const approval_date = document.getElementById('approval_date').value;
+            const report_date = document.getElementById('report_date').value;
+            const project_type = document.getElementById('project_type').value;
+            const qc_total_reads = document.getElementById('qc_total_reads').value;
+            const qc_q30 = document.getElementById('qc_q30').value;
+            const qc_depth = document.getElementById('qc_depth').value;
+            const descriptions = Array.from(document.querySelectorAll('.editable')).map(el => el.value);
+            const charts = JSON.parse(document.getElementById('charts-data').textContent);
+            // 组装test_results
+            const test_results = JSON.parse(JSON.stringify(window.PREGENERATED_TEST_RESULTS));
+            let descIdx = 0;
+            for (const module in test_results) {
+                for (let i = 0; i < test_results[module].length; i++) {
+                    test_results[module][i].description = descriptions[descIdx++];
+                }
+            }
+            const reportData = {
+                patient_data: {
+                    name: patient_name,
+                    gender: patient_gender,
+                    age: patient_age,
+                    id: patient_id
+                },
+                approval: {
+                    reviewed_by: reviewed_by,
+                    date: approval_date
+                },
+                report_date: report_date,
+                project_type: project_type,
+                qc: {
+                    total_reads: qc_total_reads,
+                    q30: qc_q30,
+                    depth: qc_depth
+                },
+                test_results: test_results,
+                charts: charts,
+                logo_path: "{{ logo_path }}"
+            };
+            fetch('/api/save_report', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(reportData)
+            }).then(response => response.json())
+            .then(data => {
+                if (data.status === 'success') {
+                    alert('Report saved successfully!');
+                } else {
+                    alert('Error saving report: ' + data.error);
+                }
+            });
+        }
+        function previewReport() {
+            syncQuillToTextarea();
+            // 立即打开新窗口，防止被拦截
+            const win = window.open('', '_blank');
+            const htmlContent = document.documentElement.outerHTML;
+            fetch('/api/generate_pdf', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ html_content: htmlContent })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.download_url) {
+                    win.location.href = data.download_url;
+                } else {
+                    win.close();
+                    alert('PDF 生成失败: ' + (data.error || '未知错误'));
+                }
+            })
+            .catch(err => {
+                win.close();
+                alert('请求失败: ' + err);
+            });
+        }
+        document.addEventListener('DOMContentLoaded', function() {
+            quillEditors = [];
+            document.querySelectorAll('textarea.editable').forEach(function(textarea, idx) {
+                var quillDiv = document.createElement('div');
+                quillDiv.className = 'quill-editor';
+                quillDiv.style.minHeight = '120px';
+                quillDiv.innerHTML = textarea.value;
+                textarea.style.display = 'none';
+                textarea.parentNode.insertBefore(quillDiv, textarea);
+                var quill = new Quill(quillDiv, {
+                    theme: 'snow',
+                    modules: {
+                        toolbar: [
+                            [{ 'header': [1, 2, false] }],
+                            ['bold', 'italic', 'underline'],
+                            ['link', 'image', 'code-block'],
+                            [{ 'list': 'ordered'}, { 'list': 'bullet' }],
+                            ['clean']
+                        ]
+                    }
+                });
+                quillEditors.push(quill);
+            });
+            // 日期默认当天
+            var dateInput = document.getElementById('report_date');
+            if(dateInput) {
+                const today = new Date();
+                const yyyy = today.getFullYear();
+                const mm = String(today.getMonth() + 1).padStart(2, '0');
+                const dd = String(today.getDate()).padStart(2, '0');
+                dateInput.value = `${yyyy}-${mm}-${dd}`;
+            }
+        });
+    </script>
+</head>
+<body>
+    <div class="container py-4">
+        <div class="text-center mb-4">
+            <img src="{{ logo_path }}" alt="Company Logo" class="header-logo" width="180" height="60"/>
+            <h1 class="fw-bold" style="color:#2575fc;letter-spacing:2px;">Gene Test Report</h1>
+            <p class="text-muted">Report Date:
+            {% if request.args.get('pdf') == '1' %}
+                {{ report_date if report_date else '' }}
+            {% else %}
+                <input type="text" id="report_date" name="report_date" style="width:140px;" value="{{ report_date if report_date else '' }}"/>
+            {% endif %}
+            </p>
+        </div>
+        <div class="row mb-4">
+            <div class="col-md-6">
+                <div class="section-title">Patient Information</div>
+                <div class="mb-2">Name:
+                {% if request.args.get('pdf') == '1' %}
+                    {{ patient_data.name }}
+                {% else %}
+                    <input type="text" id="patient_name" name="patient_name" value="{{ patient_data.name }}">
+                {% endif %}
+                </div>
+                <div class="mb-2">Gender:
+                {% if request.args.get('pdf') == '1' %}
+                    {{ patient_data.gender }}
+                {% else %}
+                    <input type="text" id="patient_gender" name="patient_gender" value="{{ patient_data.gender }}">
+                {% endif %}
+                </div>
+                <div class="mb-2">Age:
+                {% if request.args.get('pdf') == '1' %}
+                    {{ patient_data.age }}
+                {% else %}
+                    <input type="text" id="patient_age" name="patient_age" value="{{ patient_data.age }}">
+                {% endif %}
+                </div>
+                <div class="mb-2">Patient ID:
+                {% if request.args.get('pdf') == '1' %}
+                    {{ patient_data.id }}
+                {% else %}
+                    <input type="text" id="patient_id" name="patient_id" value="{{ patient_data.id }}">
+                {% endif %}
+                </div>
+            </div>
+            <div class="col-md-6">
+                <div class="section-title">Approval</div>
+                <div class="mb-2">Reviewed by:
+                {% if request.args.get('pdf') == '1' %}
+                    {{ approval.reviewed_by if approval else '' }}
+                {% else %}
+                    <input type="text" id="reviewed_by" name="reviewed_by" placeholder="请输入审核人" value="{{ approval.reviewed_by if approval else '' }}">
+                {% endif %}
+                </div>
+                <div class="mb-2">Date:
+                {% if request.args.get('pdf') == '1' %}
+                    {{ approval.date if approval else '' }}
+                {% else %}
+                    <input type="text" id="approval_date" name="approval_date" placeholder="请输入日期" value="{{ approval.date if approval else '' }}">
+                {% endif %}
+                </div>
+                <div class="mb-2">检测项目类型:
+                {% if request.args.get('pdf') == '1' %}
+                    {{ project_type if project_type else '' }}
+                {% else %}
+                    <select id="project_type" name="project_type" class="form-select" style="width:auto;display:inline-block;">
+                        <option value="WGS" {% if project_type=='WGS' %}selected{% endif %}>WGS</option>
+                        <option value="WES" {% if project_type=='WES' %}selected{% endif %}>WES</option>
+                        <option value="Panel" {% if project_type=='Panel' %}selected{% endif %}>Panel</option>
+                        <option value="RNA" {% if project_type=='RNA' %}selected{% endif %}>RNA</option>
+                    </select>
+                {% endif %}
+                </div>
+            </div>
+        </div>
+        <div class="section mb-4">
+            <div class="section-title">QC（测序数据质量统计）</div>
+            <div class="card card-body mb-2">
+                <div class="row">
+                    <div class="col-md-4 mb-2">总reads数:
+                    {% if request.args.get('pdf') == '1' %}
+                        {{ qc.total_reads if qc else '' }}
+                    {% else %}
+                        <input type="text" id="qc_total_reads" class="form-control form-control-sm" placeholder="如 100M" value="{{ qc.total_reads if qc else '' }}">
+                    {% endif %}
+                    </div>
+                    <div class="col-md-4 mb-2">Q30比例:
+                    {% if request.args.get('pdf') == '1' %}
+                        {{ qc.q30 if qc else '' }}
+                    {% else %}
+                        <input type="text" id="qc_q30" class="form-control form-control-sm" placeholder="如 92%" value="{{ qc.q30 if qc else '' }}">
+                    {% endif %}
+                    </div>
+                    <div class="col-md-4 mb-2">平均测序深度:
+                    {% if request.args.get('pdf') == '1' %}
+                        {{ qc.depth if qc else '' }}
+                    {% else %}
+                        <input type="text" id="qc_depth" class="form-control form-control-sm" placeholder="如 100X" value="{{ qc.depth if qc else '' }}">
+                    {% endif %}
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="section mb-4">
+            <div class="section-title">Test Results</div>
+            {% for module, results in test_results.items() %}
+            <div class="module-section">
+                <h5 class="fw-bold text-primary">{{ module|capitalize }} Module</h5>
+                {% for result in results %}
+                <div class="test-result card card-body mb-2">
+                    <p class="mb-1"><strong>{{ result.gene }}:</strong> {{ result.status }}</p>
+                    <div class="editor-container">
+                        <textarea class="editable">{{ result.description }}</textarea>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+            {% endfor %}
+        </div>
+        <div class="section mb-4">
+            <div class="section-title">Charts</div>
+            <div class="row">
+                {% for chart in charts %}
+                <div class="col-md-6 chart-container">
+                    <img src="{{ chart.path if chart.path.startswith('/') else '/static/' + chart.path }}" alt="{{ chart.title }}" class="img-fluid rounded shadow-sm mb-2"/>
+                    <p class="text-muted">{{ chart.title }}</p>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+        <div class="footer">
+            <p>This is an automatically generated report. Please contact the lab for any questions.</p>
+        </div>
+        <div class="button-container">
+            <button class="btn btn-gradient" onclick="saveReport()">Save Report</button>
+            <button class="btn btn-gradient" onclick="generatePdf()">Generate PDF</button>
+            <button class="btn btn-gradient" onclick="previewReport()">预览报告</button>
+        </div>
+    </div>
+</body>
+</html>

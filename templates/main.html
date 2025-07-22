@@ -1,0 +1,194 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <title>样本管理</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+    <style>
+        body { background: #e3e3e3; min-height: 100vh; font-family: Tahoma, Arial, sans-serif; }
+        .card {
+            border-radius: 10px;
+            box-shadow: 0 2px 8px #b0b0b0;
+            border: 1.5px solid #bcd2ee;
+            background: #fff;
+            color: #222;
+        }
+        .card-title {
+            color: #3a6ea5;
+            font-weight: bold;
+            font-size: 22px;
+            background: linear-gradient(90deg, #7ec0ee 0%, #3a6ea5 100%);
+            border-radius: 8px 8px 0 0;
+            padding: 8px 0 8px 0;
+            margin: -18px -18px 18px -18px;
+            box-shadow: 0 2px 4px #b0b0b0;
+            text-align: center;
+        }
+        .sample-link {
+            color: #3a6ea5;
+            text-decoration: underline;
+            font-weight: 600;
+        }
+        .sample-link:hover {
+            color: #1c4587;
+            background: #eaf6ff;
+            border-radius: 4px;
+        }
+        .btn-gradient {
+            background: linear-gradient(180deg, #7ec0ee 0%, #3a6ea5 100%);
+            color: #fff;
+            border: 1.5px solid #3a6ea5;
+            border-radius: 8px;
+            font-weight: 600;
+            box-shadow: 0 2px 4px #b0b0b0;
+            padding: 10px 22px;
+            font-family: Tahoma, Arial, sans-serif;
+            text-shadow: 1px 1px 0 #bcd2ee;
+            transition: background 0.2s, color 0.2s;
+        }
+        .btn-gradient:hover {
+            background: linear-gradient(180deg, #3a6ea5 0%, #7ec0ee 100%);
+            color: #fff;
+        }
+        .list-group-item {
+            background: #fff;
+            color: #232526;
+            border: 1px solid #bcd2ee;
+            border-radius: 6px;
+            margin-bottom: 8px;
+            transition: background 0.2s;
+        }
+        .list-group-item:hover, .list-group-item:focus {
+            background: #eaf6ff;
+        }
+        .list-group-item.text-muted {
+            color: #bfc2c7;
+            background: #f5f6fa;
+        }
+        h1 {
+            font-family: Tahoma, Arial, sans-serif;
+            color: #3a6ea5;
+            text-shadow: 1px 1px 0 #bcd2ee;
+        }
+    </style>
+</head>
+<body>
+    <div class="container py-5">
+        <div class="d-flex justify-content-end mb-3 gap-2">
+            <form id="upload-json-form" enctype="multipart/form-data" class="d-inline">
+                <input type="file" id="json-file" name="json_file" accept=".json" style="display:none;">
+                <button type="button" id="upload-json-btn" class="btn btn-success btn-gradient">上传JSON文件</button>
+            </form>
+            <button id="scan-json-btn" class="btn btn-primary btn-gradient">扫描JSON文件</button>
+        </div>
+        <h1 class="text-center mb-5 fw-bold" style="color:#2575fc;letter-spacing:2px;">样本管理</h1>
+        <div class="row g-4">
+            <div class="col-md-4">
+                <div class="card h-100">
+                    <div class="card-body">
+                        <h2 class="card-title text-center mb-3">待出报告的样本</h2>
+                        <ul class="list-group list-group-flush">
+                            {% for sample in pending_samples %}
+                            <li class="list-group-item d-flex justify-content-between align-items-center">
+                                <a class="sample-link" href="/report/{{ sample.id }}">{{ sample.id }}</a> {{ sample.name }}
+                            </li>
+                            {% else %}
+                            <li class="list-group-item text-muted">暂无待出报告样本</li>
+                            {% endfor %}
+                        </ul>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-4">
+                <div class="card h-100">
+                    <div class="card-body">
+                        <h2 class="card-title text-center mb-3">已出报告的样本</h2>
+                        <ul class="list-group list-group-flush">
+                            {% for sample in finished_samples %}
+                            <li class="list-group-item d-flex justify-content-between align-items-center">
+                                <a class="sample-link" href="/report/{{ sample.id }}">{{ sample.id }}</a> {{ sample.name }}
+                            </li>
+                            {% else %}
+                            <li class="list-group-item text-muted">暂无已出报告样本</li>
+                            {% endfor %}
+                        </ul>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-4">
+                <div class="card h-100">
+                    <div class="card-body">
+                        <h2 class="card-title text-center mb-3">全部样本</h2>
+                        <ul class="list-group list-group-flush">
+                            {% for sample in all_samples %}
+                            <li class="list-group-item d-flex justify-content-between align-items-center">
+                                <a class="sample-link" href="/report/{{ sample.id }}">{{ sample.id }}</a> {{ sample.name }}
+                            </li>
+                            {% else %}
+                            <li class="list-group-item text-muted">暂无样本</li>
+                            {% endfor %}
+                        </ul>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+    document.addEventListener('DOMContentLoaded', function() {
+        var btn = document.getElementById('scan-json-btn');
+        if (btn) {
+            btn.onclick = function() {
+                btn.disabled = true;
+                btn.innerText = '正在扫描...';
+                fetch('/import_samples_once')
+                    .then(res => res.text())
+                    .then(txt => {
+                        alert(txt.replace(/<[^>]+>/g, ''));
+                        btn.disabled = false;
+                        btn.innerText = '扫描JSON文件';
+                        location.reload();
+                    })
+                    .catch(e => {
+                        alert('扫描失败: ' + e);
+                        btn.disabled = false;
+                        btn.innerText = '扫描JSON文件';
+                    });
+            }
+        }
+        // 上传JSON文件逻辑
+        var uploadBtn = document.getElementById('upload-json-btn');
+        var fileInput = document.getElementById('json-file');
+        var form = document.getElementById('upload-json-form');
+        if (uploadBtn && fileInput && form) {
+            uploadBtn.onclick = function() { fileInput.click(); };
+            fileInput.onchange = function() {
+                if (!fileInput.files.length) return;
+                var formData = new FormData();
+                formData.append('json_file', fileInput.files[0]);
+                uploadBtn.disabled = true;
+                uploadBtn.innerText = '上传中...';
+                fetch('/upload_json', {
+                    method: 'POST',
+                    body: formData
+                })
+                .then(res => res.text())
+                .then(txt => {
+                    alert(txt);
+                    uploadBtn.disabled = false;
+                    uploadBtn.innerText = '上传JSON文件';
+                    fileInput.value = '';
+                    location.reload();
+                })
+                .catch(e => {
+                    alert('上传失败: ' + e);
+                    uploadBtn.disabled = false;
+                    uploadBtn.innerText = '上传JSON文件';
+                });
+            };
+        }
+    });
+    </script>
+</body>
+</html> 

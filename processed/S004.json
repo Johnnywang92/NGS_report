@@ -1,0 +1,22 @@
+{
+  "S004": {
+    "name": "赵六",
+    "gender": "Female",
+    "age": 30,
+    "logo_path": "/Users/yifanwang/Documents/report_dev/static/gene_analysis.png",
+    "snp": [
+      {"gene": "BRCA2", "status": "Negative", "description": "No SNP mutation"}
+    ],
+    "indel": [
+      {"gene": "TP53", "status": "Positive", "description": "Indel mutation detected"}
+    ],
+    "sv": [],
+    "snv": [],
+    "fusion": [],
+    "tmb": [],
+    "drug": [],
+    "charts": [
+      {"path": "chart1.png", "title": "Gene Expression Chart"}
+    ]
+  }
+} 

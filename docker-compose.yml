@@ -1,0 +1,18 @@
+version: '3.8'
+services:
+  mysql:
+    image: mysql:8.0
+    container_name: gene_report_mysql
+    restart: always
+    environment:
+      MYSQL_ROOT_PASSWORD: rooT@321
+      MYSQL_DATABASE: gene_data
+      MYSQL_USER: gene_reports
+      MYSQL_PASSWORD: rooT@321
+    ports:
+      - "3307:3306"
+    volumes:
+      - mysql_data:/var/lib/mysql
+volumes:
+  mysql_data:
+    driver: local

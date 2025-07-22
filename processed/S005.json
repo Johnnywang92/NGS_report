@@ -1,0 +1,24 @@
+{
+  "S005": {
+    "name": "孙七",
+    "gender": "Male",
+    "age": 52,
+    "logo_path": "gene_analysis.png",
+    "snp": [],
+    "indel": [],
+    "sv": [
+      {"gene": "RET", "status": "Positive", "description": "RET fusion detected"}
+    ],
+    "snv": [
+      {"gene": "EGFR", "status": "Positive", "description": "EGFR SNV mutation"}
+    ],
+    "fusion": [],
+    "tmb": [],
+    "drug": [
+      {"gene": "ALK", "status": "Sensitive", "description": "ALK inhibitor sensitive"}
+    ],
+    "charts": [
+      {"path": "chart2.png", "title": "Mutation Frequency Chart"}
+    ]
+  }
+} 

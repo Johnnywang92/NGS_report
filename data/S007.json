@@ -1,0 +1,33 @@
+{
+  "S007": {
+    "name": "测试错误",
+    "gender": "Male",
+    "age": 50,
+    "logo_path": "gene_analysis.png",
+    "snp": [
+      {"gene": "BRCA1", "status": "Positive", "description": "SNP mutation detected"}
+    ],
+    "indel": [
+      {"gene": "TP53", "status": "Negative", "description": "No indel mutation"}
+    ],
+    "sv": [
+      {"gene": "ALK", "status": "Positive", "description": "Structural variant detected"}
+    ],
+    "snv": [
+      {"gene": "EGFR", "status": "Negative", "description": "No SNV mutation"}
+    ],
+    "fusion": [
+      {"gene": "ROS1", "status": "Positive", "description": "Fusion gene detected"}
+    ],
+    "tmb": [
+      {"gene": "TMB", "status": "High", "description": "Tumor mutational burden high"}
+    ],
+    "drug": [
+      {"gene": "KRAS", "status": "Resistant", "description": "Drug resistance mutation"}
+    ],
+    "charts": [
+      {"path": "chart1.png", "title": "Gene Expression Chart"},
+      {"path": "chart2.png", "title": "Mutation Frequency Chart"}
+    ]
+  }
+} 
